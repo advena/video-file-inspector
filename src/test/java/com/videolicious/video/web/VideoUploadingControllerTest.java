@@ -6,12 +6,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.videolicious.vide.UploadedVideoHandler;
-import com.videolicious.vide.UploadedVideoHandler.VideoMetadata;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
+
+import com.videolicious.video.UploadedVideoMetadataProvider;
+import com.videolicious.video.VideoUploader;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,17 +32,33 @@ import org.springframework.web.context.WebApplicationContext;
 public class VideoUploadingControllerTest {
 
     private static final MockMultipartFile CORRECT_VIDEO_FILE =
-        new MockMultipartFile("videoFile", "name.mpg", "video/mp4", ofSize(1));
+            new MockMultipartFile("videoFile", "name.mpg", "video/mp4", ofSize(1));
 
     private static final UUID CORRECTLY_UPLOADED_VIDEO_ID = UUID.randomUUID();
-    private static final VideoMetadata UPLOADED_VIDEO_METADATA = VideoMetadata.metadata()
-        .duration("10sec")
-        .videoSize("12mb")
-        .audioBitRate(12)
-        .audioCodec("codec")
-        .videoBitRate(12)
-        .videoCodec("codec")
-        .build();
+    private static final UUID FINISHED_UPLOADED_VIDEO_ID = CORRECTLY_UPLOADED_VIDEO_ID;
+    private static final UUID VIDEO_IN_PENDING_STATUS = UUID.randomUUID();
+    private static final UUID VIDEO_THAT_CAUSES_ERROR = UUID.randomUUID();
+
+    private static final UploadedVideoMetadataProvider.UploadedVideo PENDING_UPLOADED_VIDEO = new UploadedVideoMetadataProvider.UploadedVideo(
+            "PENDING",
+            null
+    );
+
+    private static final UploadedVideoMetadataProvider.UploadedVideo ERROR_UPLOADED_VIDEO = new UploadedVideoMetadataProvider.UploadedVideo(
+            "ERROR",
+            null
+    );
+    private static final UploadedVideoMetadataProvider.UploadedVideo FINISHED_UPLOADED_VIDEO =
+            new UploadedVideoMetadataProvider.UploadedVideo(
+                    "FINISHED",
+                    UploadedVideoMetadataProvider.VideoMetadata.VideoMetadataBuilder.metatdata()
+                            .duration(1020.12)
+                            .videoSize("12mb")
+                            .audioBitRate(12L)
+                            .audioCodec("codec")
+                            .videoBitRate(12L)
+                            .videoCodec("codec")
+                            .create());
 
     @Autowired
     private WebApplicationContext webApplicationContext;
@@ -49,46 +67,67 @@ public class VideoUploadingControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private UploadedVideoHandler uploadedVideoHandler;
+    private VideoUploader videoUploader;
+
+    @MockBean
+    private UploadedVideoMetadataProvider uploadedVideoMetadataProvider;
 
     @Before
     public void setUpMock() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
-        when(uploadedVideoHandler.upload(any())).thenReturn(CORRECTLY_UPLOADED_VIDEO_ID);
-        when(uploadedVideoHandler.metadataFor(any())).thenReturn(Optional.empty());
-        when(uploadedVideoHandler.metadataFor(CORRECTLY_UPLOADED_VIDEO_ID)).thenReturn(Optional.of(UPLOADED_VIDEO_METADATA));
+        when(videoUploader.upload(any())).thenReturn(CORRECTLY_UPLOADED_VIDEO_ID);
+        when(uploadedVideoMetadataProvider.metadataFor(any())).thenReturn(Optional.empty());
+        when(uploadedVideoMetadataProvider.metadataFor(CORRECTLY_UPLOADED_VIDEO_ID)).thenReturn(Optional.of(FINISHED_UPLOADED_VIDEO));
+        when(uploadedVideoMetadataProvider.metadataFor(VIDEO_IN_PENDING_STATUS)).thenReturn(Optional.of(PENDING_UPLOADED_VIDEO));
+        when(uploadedVideoMetadataProvider.metadataFor(VIDEO_THAT_CAUSES_ERROR)).thenReturn(Optional.of(ERROR_UPLOADED_VIDEO));
     }
 
     @Test
     public void shouldReturnCorrectStatusWithResourceLocationForCorrectVideoFile() throws Exception {
         mockMvc.perform(fileUploadBuilder("/video")
-            .file(CORRECT_VIDEO_FILE))
-            .andExpect(status().isCreated())
-            .andExpect(redirectedUrlPattern("**/video/" + CORRECTLY_UPLOADED_VIDEO_ID.toString()));
+                .file(CORRECT_VIDEO_FILE))
+                .andExpect(status().isCreated())
+                .andExpect(redirectedUrlPattern("**/video/" + CORRECTLY_UPLOADED_VIDEO_ID.toString() + "/metadata"));
     }
 
     @Test
-    public void shouldReturnUploadedVideoMetadataOnExistingResourceCall() throws Exception {
-        mockMvc.perform(get("/video/" + CORRECTLY_UPLOADED_VIDEO_ID + "/metadata"))
-            .andExpect(status().isOk());
+    public void shouldReturnUploadedVideoMetadataWithFinishedStatus() throws Exception {
+        mockMvc.perform(get("/video/" + FINISHED_UPLOADED_VIDEO_ID + "/metadata"))
+                .andExpect(status().isOk());
+        //todo add body check
+    }
+
+    @Test
+    public void shouldReturnPendingStatusOnStillProcessingVideo() throws Exception {
+        mockMvc.perform(get("/video/" + VIDEO_IN_PENDING_STATUS + "/metadata"))
+                .andExpect(status().isOk());
+        //todo add body check
+    }
+
+    @Test
+    public void shouldReturnErrorStatusOnErrorInVideoProcessing() throws Exception {
+        mockMvc.perform(get("/video/" + VIDEO_THAT_CAUSES_ERROR + "/metadata"))
+                .andExpect(status().isOk());
         //todo add body check
     }
 
     @Test
     public void shouldReturn404OnNonExistingResourceCall() throws Exception {
         mockMvc.perform(get("/video/" + UUID.randomUUID().toString() + "/metadata"))
-            .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound());
     }
 
+    //todo content type check
 
-
-
+    //fixme
+    @Test
+    @Ignore
     public void shouldNotAllowToUploadFileThatHasExcitedMaxFileUploadSize() throws Exception {
         // given
         MockMultipartFile file = new MockMultipartFile("videoFile", "name.mpg", "video/mp4", ofSize(100000000));
         mockMvc.perform(fileUploadBuilder("/video")
-            .file(file))
-            .andExpect(status().is5xxServerError());
+                .file(file))
+                .andExpect(status().is5xxServerError());
         // when
 
         // then
@@ -97,7 +136,7 @@ public class VideoUploadingControllerTest {
     //for overriding default POST method as mutlipartfile uploader
     private MockMultipartHttpServletRequestBuilder fileUploadBuilder(String url) {
         MockMultipartHttpServletRequestBuilder builder =
-            MockMvcRequestBuilders.fileUpload(url);
+                MockMvcRequestBuilders.fileUpload(url);
         builder.with(request -> {
             request.setMethod("PUT");
             return request;
