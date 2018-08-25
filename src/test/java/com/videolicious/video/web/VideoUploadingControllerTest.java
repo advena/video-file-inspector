@@ -1,8 +1,11 @@
 package com.videolicious.video.web;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -93,22 +96,31 @@ public class VideoUploadingControllerTest {
     @Test
     public void shouldReturnUploadedVideoMetadataWithFinishedStatus() throws Exception {
         mockMvc.perform(get("/video/" + FINISHED_UPLOADED_VIDEO_ID + "/metadata"))
-                .andExpect(status().isOk());
-        //todo add body check
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("FINISHED")))
+                .andExpect(jsonPath("$.videoMetadata.duration", is(1020.12)))
+                .andExpect(jsonPath("$.videoMetadata.videoSize", is("12mb")))
+                .andExpect(jsonPath("$.videoMetadata.videoBitRate", is(12)))
+                .andExpect(jsonPath("$.videoMetadata.videoCodec", is("codec")))
+                .andExpect(jsonPath("$.videoMetadata.audioBitRate", is(12)))
+                .andExpect(jsonPath("$.videoMetadata.audioCodec", is("codec")));
+
     }
 
     @Test
     public void shouldReturnPendingStatusOnStillProcessingVideo() throws Exception {
         mockMvc.perform(get("/video/" + VIDEO_IN_PENDING_STATUS + "/metadata"))
-                .andExpect(status().isOk());
-        //todo add body check
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PENDING")))
+                .andExpect(jsonPath("$.videoMetadata", nullValue()));
     }
 
     @Test
     public void shouldReturnErrorStatusOnErrorInVideoProcessing() throws Exception {
         mockMvc.perform(get("/video/" + VIDEO_THAT_CAUSES_ERROR + "/metadata"))
-                .andExpect(status().isOk());
-        //todo add body check
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ERROR")))
+                .andExpect(jsonPath("$.videoMetadata", nullValue()));
     }
 
     @Test
@@ -116,8 +128,6 @@ public class VideoUploadingControllerTest {
         mockMvc.perform(get("/video/" + UUID.randomUUID().toString() + "/metadata"))
                 .andExpect(status().isNotFound());
     }
-
-    //todo content type check
 
     //fixme
     @Test
