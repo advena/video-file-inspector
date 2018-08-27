@@ -1,16 +1,20 @@
 package com.videolicious.video;
 
 import java.util.UUID;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ExecutorService;
 
-class FFmpegBasedVideoUploader implements VideoUploader {
+class SimpleVideoUploader implements VideoUploader {
 
-    private ProcessedVideoRepository repository;
-    private VideoProcessor videoProcessor;
+    private final ProcessedVideoRepository repository;
+    private final VideoProcessor videoProcessor;
+    private final VideoStorage videoStorage;
+    private final ExecutorService executorService;
 
-    FFmpegBasedVideoUploader(ProcessedVideoRepository repository, VideoProcessor videoProcessor) {
+    SimpleVideoUploader(ProcessedVideoRepository repository, VideoProcessor videoProcessor, VideoStorage videoStorage, ExecutorService executorService) {
         this.repository = repository;
         this.videoProcessor = videoProcessor;
+        this.videoStorage = videoStorage;
+        this.executorService = executorService;
     }
 
     @Override
@@ -22,9 +26,8 @@ class FFmpegBasedVideoUploader implements VideoUploader {
     }
 
     private void processVideo(UploadedVideoFile uploadedVideoFile, UUID fileId) {
-        ForkJoinPool forkJoinPool = ForkJoinPool.commonPool();
         VideoProcessingJob videoProcessingJob = prepareVideoProcessingJob(fileId, uploadedVideoFile);
-        forkJoinPool.execute(videoProcessingJob);
+        executorService.submit(videoProcessingJob);
     }
 
     private VideoProcessingJob prepareVideoProcessingJob(UUID fileId, UploadedVideoFile uploadedVideoFile) {
@@ -35,7 +38,7 @@ class FFmpegBasedVideoUploader implements VideoUploader {
                         fileId
                 ),
                 videoProcessor,
-                processedVideo -> repository.save(processedVideo)
+                videoStorage, repository::save
         );
     }
 }

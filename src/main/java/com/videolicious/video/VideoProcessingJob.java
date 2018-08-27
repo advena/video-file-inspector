@@ -1,46 +1,42 @@
 package com.videolicious.video;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import lombok.Builder;
 import lombok.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-class VideoProcessingJob implements Runnable{
+class VideoProcessingJob implements Runnable {
+
+    private static final Logger log = LoggerFactory.getLogger(VideoProcessingJob.class);
 
     private final VideoToProcess videoToProcess;
     private final VideoProcessor videoProcessor;
+    private final VideoStorage videoStorage;
     private final Consumer<ProcessedVideo> postProcessingAction;
 
-    VideoProcessingJob(VideoToProcess videoToProcess, VideoProcessor videoProcessor, Consumer<ProcessedVideo> postProcessingAction) {
+    VideoProcessingJob(VideoToProcess videoToProcess, VideoProcessor videoProcessor, VideoStorage videoStorage, Consumer<ProcessedVideo> postProcessingAction) {
         this.videoToProcess = videoToProcess;
         this.videoProcessor = videoProcessor;
+        this.videoStorage = videoStorage;
         this.postProcessingAction = postProcessingAction;
     }
 
     @Override
     public void run() {
         try {
-            String savedFileLocation = saveFile();
+            String savedFileLocation = videoStorage.storeVideo(videoToProcess);
             ProcessedVideo processedVideo = videoProcessor.process(savedFileLocation, videoToProcess.externalVideoId);
             postProcessingAction.accept(processedVideo);
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            log.error("Cannot save video file {}", videoToProcess.videoName, e);
+            postProcessingAction.accept(ProcessedVideo.error(videoToProcess.externalVideoId));
         }
     }
 
-    private String saveFile() throws IOException {
-        String savedVideoLocation = "/tmp/" + videoToProcess.videoName + videoToProcess.externalVideoId;
-        Files.copy(videoToProcess.videoContentStream, Paths.get(savedVideoLocation));
-        return savedVideoLocation;
-    }
-
     @Value
-    @Builder(builderMethodName = "video")
     static class VideoToProcess {
 
         InputStream videoContentStream;

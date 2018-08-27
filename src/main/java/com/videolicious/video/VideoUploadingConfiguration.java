@@ -1,5 +1,7 @@
 package com.videolicious.video;
 
+import java.util.concurrent.Executors;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,14 +12,18 @@ public class VideoUploadingConfiguration {
     @Value("${ffprobe.location}")
     private String ffProbeLocation;
 
+    @Value("${processed.video.location")
+    private String processedVideoLocation;
+
     private ProcessedVideoRepository repository = new ProcessedVideoRepository();
 
     @Bean
     VideoUploader videoUploader() {
-        return new FFmpegBasedVideoUploader(
+        return new SimpleVideoUploader(
                 repository,
-                videoProcessor()
-        );
+                videoProcessor(),
+                new VideoStorage(processedVideoLocation),
+                Executors.newSingleThreadExecutor());
     }
 
     @Bean
@@ -26,7 +32,7 @@ public class VideoUploadingConfiguration {
     }
 
     private VideoProcessor videoProcessor() {
-        return new VideoProcessor(ffProbeLocation);
+        return new VideoProcessor.FfmpegBasedVideoProcessor(ffProbeLocation);
     }
 
 }

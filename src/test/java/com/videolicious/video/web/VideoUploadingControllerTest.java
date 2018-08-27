@@ -1,5 +1,6 @@
 package com.videolicious.video.web;
 
+import static com.videolicious.TestCommonData.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,31 +38,6 @@ public class VideoUploadingControllerTest {
     private static final MockMultipartFile CORRECT_VIDEO_FILE =
             new MockMultipartFile("videoFile", "name.mpg", "video/mp4", ofSize(1));
 
-    private static final UUID CORRECTLY_UPLOADED_VIDEO_ID = UUID.randomUUID();
-    private static final UUID FINISHED_UPLOADED_VIDEO_ID = CORRECTLY_UPLOADED_VIDEO_ID;
-    private static final UUID VIDEO_IN_PENDING_STATUS = UUID.randomUUID();
-    private static final UUID VIDEO_THAT_CAUSES_ERROR = UUID.randomUUID();
-
-    private static final UploadedVideoMetadataProvider.UploadedVideo PENDING_UPLOADED_VIDEO = new UploadedVideoMetadataProvider.UploadedVideo(
-            "PENDING",
-            null
-    );
-
-    private static final UploadedVideoMetadataProvider.UploadedVideo ERROR_UPLOADED_VIDEO = new UploadedVideoMetadataProvider.UploadedVideo(
-            "ERROR",
-            null
-    );
-    private static final UploadedVideoMetadataProvider.UploadedVideo FINISHED_UPLOADED_VIDEO =
-            new UploadedVideoMetadataProvider.UploadedVideo(
-                    "FINISHED",
-                    UploadedVideoMetadataProvider.VideoMetadata.VideoMetadataBuilder.metatdata()
-                            .duration(1020.12)
-                            .videoSize("12mb")
-                            .audioBitRate(12L)
-                            .audioCodec("codec")
-                            .videoBitRate(12L)
-                            .videoCodec("codec")
-                            .create());
 
     @Autowired
     private WebApplicationContext webApplicationContext;
