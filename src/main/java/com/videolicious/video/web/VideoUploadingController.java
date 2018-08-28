@@ -1,22 +1,17 @@
 package com.videolicious.video.web;
 
-import static com.videolicious.video.web.VideoUploadingController.VIDEO_URL;
-
-import java.io.IOException;
-import java.util.UUID;
-
 import com.videolicious.video.UploadedVideoMetadataProvider;
 import com.videolicious.video.VideoUploader;
 import com.videolicious.video.VideoUploader.UploadedVideoFile;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.io.IOException;
+import java.util.UUID;
+
+import static com.videolicious.video.web.VideoUploadingController.VIDEO_URL;
 
 @RestController
 @RequestMapping(VIDEO_URL)
@@ -32,6 +27,8 @@ class VideoUploadingController {
         this.uploadedVideoMetadataProvider = uploadedVideoMetadataProvider;
     }
 
+    //fixme investigate how to send request with content-type via curl or postman and remove @Ignore at desired test method
+//    @PutMapping(consumes = "video/*")
     @PutMapping
     ResponseEntity<UUID> uploadVideo(@RequestParam MultipartFile videoFile, UriComponentsBuilder uriBuilder) throws IOException {
         videoFile.getInputStream();
